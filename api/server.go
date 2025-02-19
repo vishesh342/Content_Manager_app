@@ -29,10 +29,13 @@ func NewServer(dbConn *pgxpool.Pool) (*Server,error) {
 	server.connector = db.NewConnector(dbConn)
 	router := gin.Default()
 
+	authGroup:=router.Group("/").Use(authMiddleware(server.tokenMaker))
 	router.POST("/account", server.registerUser)
 	router.POST("/account/login", server.loginUser)
-	router.GET("/account/:username", server.getUser)
-	router.PUT("/account", server.updateUser)
+
+	// added to Authorization Group.
+	authGroup.GET("/account/:username", server.getUser)
+	authGroup.PUT("/account", server.updateUser)
 
 	server.router = router
 	return server,nil
