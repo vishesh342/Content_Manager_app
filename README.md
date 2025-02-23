@@ -1,1 +1,1 @@
-# Content_Manager_app
+# Schedulio.ai  - Schedule, post, and analyze your content seamlessly.
