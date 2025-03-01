@@ -2,12 +2,14 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/vishesh342/content-manager/db/sqlc"
+	token "github.com/vishesh342/content-manager/tokens"
 	util "github.com/vishesh342/content-manager/util"
 )
 const(
@@ -110,7 +112,12 @@ func (server *Server) getUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
+	authPayload := ctx.MustGet(authorizationPayload).(*token.Payload)
 
+	if req.Username != authPayload.Username{
+		err := errors.New("account does not belong to authenticated user")
+		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+	}
 	user, err := server.connector.GetUser(ctx, req.Username)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -130,7 +137,7 @@ func (server *Server) getUser(ctx *gin.Context) {
 
 type updateUserRequest struct {
 	Username string `json:"username" uri:"username" binding:"required"`
-	Password string `uri:"password" binding:"required"`
+	Password string `json:"password" uri:"password" binding:"required"`
 }
 type updateUserResponse struct {
 	Remark string `json:"remark"`
@@ -142,6 +149,13 @@ func (server *Server) updateUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(err))
 		return
 	}
+	authPayload := ctx.MustGet(authorizationPayload).(*token.Payload)
+
+	if req.Username != authPayload.Username{
+		err := errors.New("account does not belong to authenticated user")
+		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
+	}
+
 	arg := db.UpdateUserParams{
 		Username:       req.Username,
 		HashedPassword: req.Password,

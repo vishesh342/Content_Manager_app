@@ -25,7 +25,7 @@ func NewServer(dbConn *pgxpool.Pool) (*Server,error) {
 		return nil,fmt.Errorf("failed to create token maker: %w",err)
 	}
 	server := &Server{}
-	server .tokenMaker = maker
+	server.tokenMaker = maker
 	server.connector = db.NewConnector(dbConn)
 	router := gin.Default()
 
@@ -33,8 +33,8 @@ func NewServer(dbConn *pgxpool.Pool) (*Server,error) {
 	router.GET("/oauth/linkedin/callback",server.handleLinkedInCallback)
 	router.POST("/account", server.registerUser)
 	router.POST("/account/login", server.loginUser)
-
-
+	
+	
 	// added to Authorization Group.
 	authGroup.GET("/account/:username", server.getUser)
 	authGroup.PUT("/account", server.updateUser)
