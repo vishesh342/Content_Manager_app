@@ -9,6 +9,7 @@ CREATE TABLE social_accounts (
     id SERIAL PRIMARY KEY,
     username VARCHAR NOT NULL REFERENCES users(username) ON DELETE CASCADE,
     platform_id INT NOT NULL REFERENCES platforms(id) ON DELETE CASCADE,
+    platform_username VARCHAR,
     access_token TEXT NOT NULL,
     refresh_token TEXT,
     expires_at TIMESTAMPTZ NOT NULL,

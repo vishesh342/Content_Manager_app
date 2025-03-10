@@ -16,14 +16,15 @@ type Platform struct {
 }
 
 type SocialAccount struct {
-	ID           int32
-	Username     string
-	PlatformID   int32
-	AccessToken  string
-	RefreshToken pgtype.Text
-	ExpiresAt    pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID               int32
+	Username         string
+	PlatformID       int32
+	PlatformUsername pgtype.Text
+	AccessToken      string
+	RefreshToken     pgtype.Text
+	ExpiresAt        pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
 }
 
 type User struct {
