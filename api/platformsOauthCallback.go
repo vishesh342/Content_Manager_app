@@ -30,6 +30,7 @@ type linkedinOAuthRequest struct {
 
 type accessTokenResponse struct {
 	AccessToken string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 	ExpiresIn   int    `json:"expires_in"`
 }
 type successResponse struct{
@@ -141,7 +142,7 @@ func (server *Server) createSocialAccount(ctx *gin.Context,authPayload *token.Pa
 				PlatformID: platform.ID,
 				PlatformUsername: pgtype.Text{String: user.ID},
 				AccessToken: tokenResp.AccessToken,
-				RefreshToken: pgtype.Text{String: ""},
+				RefreshToken: pgtype.Text{String: tokenResp.RefreshToken},
 				ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Second*time.Duration(tokenResp.ExpiresIn)), Valid: true},
 			}
 			_, err = server.connector.CreateAccount(ctx,arg)
@@ -154,7 +155,7 @@ func (server *Server) createSocialAccount(ctx *gin.Context,authPayload *token.Pa
 		Username: authPayload.Username,
 		PlatformID: platform.ID,
 		AccessToken: tokenResp.AccessToken,
-		RefreshToken: pgtype.Text{String: ""},
+		RefreshToken: pgtype.Text{String: tokenResp.RefreshToken},
 		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Second*time.Duration(tokenResp.ExpiresIn)), Valid: true},
 		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(),Valid: true},
 	}
