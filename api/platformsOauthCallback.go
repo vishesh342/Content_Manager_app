@@ -3,6 +3,8 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,13 +13,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/vishesh342/content-manager/db/sqlc"
-	token "github.com/vishesh342/content-manager/tokens"
 )
 
 const (
 	authorization = "authorization_code"
 	clientID     = "86zk1jyrzrqnfw"
 	clientSecret = "WPL_AP1.xalSibXXFTXvniGr.0Op+Zw=="
+	scope     = "w_member_social openid profile email"
+	authURL = "https://www.linkedin.com/oauth/v2/authorization"
 	redirectURI  = "http://localhost:8080/oauth/linkedin/callback"
 	tokenURL = "https://www.linkedin.com/oauth/v2/accessToken"
 	userIdURL = "https://api.linkedin.com/v2/me"
@@ -37,6 +40,14 @@ type successResponse struct{
 	Remark string `json:"remark"`
 }
 
+func (server *Server) getLinkedinToken(ctx *gin.Context){
+ 	url := fmt.Sprintf("%s?response_type=code&client_id=%s&redirect_uri=%s&scope=%s&state=randomstring",
+ 			authURL, clientID, redirectURI, scope)
+	
+	ctx.Redirect(http.StatusFound,url)
+}
+
+
 // Handle LinkedIn OAuth callback
 func(server *Server) handleLinkedInCallback(ctx *gin.Context) {
 	// Get 'code' and 'state' from query parameters
@@ -54,9 +65,8 @@ func(server *Server) handleLinkedInCallback(ctx *gin.Context) {
 	}
 	// Store token in database (for now, just print it)
 	// TODO: Store token securely in the database
-	authPayload := ctx.MustGet(authorizationPayload).(*token.Payload)
 
-	err = server.createSocialAccount(ctx, authPayload,tokenResp)
+	err = server.createSocialAccount(ctx,tokenResp)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
@@ -103,7 +113,54 @@ func getLinkedInAccessToken(code string) (accessTokenResponse, error) {
 type LinkedInUser struct {
 	ID                 string `json:"id"`
 }
-func (server *Server) createSocialAccount(ctx *gin.Context,authPayload *token.Payload, tokenResp accessTokenResponse) error {
+
+func (server *Server) createSocialAccount(ctx *gin.Context, tokenResp accessTokenResponse) error {	
+	// Get user id from Linkedin
+	user,err := getLinkedinUserID(tokenResp)
+	if err!=nil{
+		return err
+	}
+
+	// Get Platform-ID
+	platform,err := server.connector.GetPlatform(ctx,"LinkedIn")
+	if err != nil{
+		return err
+	}
+
+	// Get auth_token from cookie and get username from token
+	authToken, err := ctx.Cookie("auth_token")
+	if err != nil{
+		return errors.New("no auth token cookie found")
+	}
+
+	// Verify the jwt token stored in cookie
+	payload,err := server.tokenMaker.VerifyToken(authToken)
+	if err!=nil{
+		return errors.New("authentication of the token failed")
+	}
+
+	// Check if the acccount already exists, if not then create a new account else update the existing account
+	status,err:=server.accountExists(ctx,payload.Username,platform.ID)
+	if !status {
+		if err == sql.ErrNoRows {
+			err = server.createAccount(ctx,payload.Username,platform.ID,user.ID,tokenResp)
+			if err != nil{
+				return err
+			}
+		}
+		return err
+	}else{
+		err = server.updateAccount(ctx,payload.Username,platform.ID,tokenResp)
+		if err != nil{
+			return err
+		}
+	}
+
+	return nil
+}
+
+// getLinkedinUserID gets the LinkedIn user ID using the access token.
+func getLinkedinUserID(tokenResp accessTokenResponse) (LinkedInUser, error) {
 	var user LinkedInUser
 	req, _ := http.NewRequest("GET", userIdURL, nil)
 	req.Header.Set("Authorization", "Bearer "+tokenResp.AccessToken)
@@ -111,57 +168,57 @@ func (server *Server) createSocialAccount(ctx *gin.Context,authPayload *token.Pa
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return  err
+		return  user,err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return  err
+		return  user,err
 	}
 	if err := json.Unmarshal(body, &user); err != nil {
-		return  err
+		return  user,err
 	}
+	return user,nil
+}
 
-	// Get Platform-ID
-	platform,err := server.connector.GetPlatform(ctx,"LinkedIn")
-	if err != nil{
-		return err
-	}	
-	// Check krna h ki agar user ka platform created hai -> access token update kr do nahi toh account create kr do. 
+// accountExists checks if a social account already exists for a given user and platform.
+func (server *Server) accountExists(ctx *gin.Context,username string,platformID int32) (bool, error) {
 	arg := db.GetAccountParams{
-		Username: authPayload.Username,
-		PlatformID: platform.ID,
+		Username:   username,
+		PlatformID: platformID,
 	}
-	_, err = server.connector.GetAccount(ctx,arg)
+	_, err := server.connector.GetAccount(ctx, arg)
 	if err != nil {
-		// User not found
-		if err == sql.ErrNoRows {
-			arg := db.CreateAccountParams{
-				Username: authPayload.Username,
-				PlatformID: platform.ID,
-				PlatformUsername: pgtype.Text{String: user.ID},
-				AccessToken: tokenResp.AccessToken,
-				RefreshToken: pgtype.Text{String: tokenResp.RefreshToken},
-				ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Second*time.Duration(tokenResp.ExpiresIn)), Valid: true},
-			}
-			_, err = server.connector.CreateAccount(ctx,arg)
-			if err != nil{
-				return err
-			}
-		}
+		return false, err
 	}
-	updateArg:= db.UpdateAccountParams {
-		Username: authPayload.Username,
-		PlatformID: platform.ID,
-		AccessToken: tokenResp.AccessToken,
-		RefreshToken: pgtype.Text{String: tokenResp.RefreshToken},
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Second*time.Duration(tokenResp.ExpiresIn)), Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(),Valid: true},
+	return true, nil
+}
+
+// createAccount creates a new social account in the database.
+func (server *Server) createAccount(ctx *gin.Context, username string, platformID int32, linkedInUserID string, tokenResp accessTokenResponse) error {
+	arg := db.CreateAccountParams{
+		Username:         username,
+		PlatformID:       platformID,
+		PlatformUsername: pgtype.Text{String: linkedInUserID, Valid: true},
+		AccessToken:      tokenResp.AccessToken,
+		RefreshToken:     pgtype.Text{String: tokenResp.RefreshToken, Valid: true},
+		ExpiresAt:        pgtype.Timestamptz{Time: time.Now().Add(time.Second * time.Duration(tokenResp.ExpiresIn)), Valid: true},
 	}
-	err = server.connector.UpdateAccount(ctx,updateArg)
-	if err != nil{
-		return err
+	_, err := server.connector.CreateAccount(ctx, arg)
+	return err
+}
+
+// updateAccount updates an existing social account in the database.
+func (server *Server) updateAccount(ctx *gin.Context, username string, platformID int32, tokenResp accessTokenResponse) error {
+	updateArg := db.UpdateAccountParams{
+		Username:     username,
+		PlatformID:   platformID,
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: pgtype.Text{String: tokenResp.RefreshToken, Valid: true},
+		ExpiresAt:    pgtype.Timestamptz{Time: time.Now().Add(time.Second * time.Duration(tokenResp.ExpiresIn)), Valid: true},
+		UpdatedAt:    pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	}
-	return nil
+	err := server.connector.UpdateAccount(ctx, updateArg)
+	return err
 }

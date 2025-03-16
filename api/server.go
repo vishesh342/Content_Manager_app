@@ -32,10 +32,11 @@ func NewServer(dbConn *pgxpool.Pool) (*Server,error) {
 	authGroup:=router.Group("/").Use(authMiddleware(server.tokenMaker))
 	router.POST("/account", server.registerUser)
 	router.POST("/account/login", server.loginUser)
+	router.GET("/oauth/linkedin/callback",server.handleLinkedInCallback)
 	
 	
 	// added to Authorization Group.
-	authGroup.GET("/oauth/linkedin/callback",server.handleLinkedInCallback)
+	authGroup.GET("oauth/linkedin",server.getLinkedinToken)
 	authGroup.GET("/account/:username", server.getUser)
 	authGroup.PUT("/account", server.updateUser)
 
