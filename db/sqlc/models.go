@@ -8,18 +8,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Platform struct {
-	ID           int32
-	PlatformName string
-	ApiEndpoint  string
-	CreatedAt    pgtype.Timestamptz
+type Post struct {
+	ID            string
+	Content       string
+	MediaType     string
+	MediaUrns     []byte
+	ScheduledTime pgtype.Timestamptz
+	Visibility    string
+	AccountID     int32
+	CreatedAt     pgtype.Timestamptz
 }
 
 type SocialAccount struct {
 	ID               int32
 	Username         string
-	PlatformID       int32
-	PlatformUsername pgtype.Text
+	PlatformUsername string
 	AccessToken      string
 	RefreshToken     pgtype.Text
 	ExpiresAt        pgtype.Timestamptz

@@ -10,16 +10,18 @@ import (
 
 type Querier interface {
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (SocialAccount, error)
-	CreatePlatform(ctx context.Context, arg CreatePlatformParams) (Platform, error)
+	CreatePost(ctx context.Context, arg CreatePostParams) (Post, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteAccount(ctx context.Context, arg DeleteAccountParams) error
-	DeletePlatform(ctx context.Context, platformName string) error
+	DeletePost(ctx context.Context, id string) error
 	DeleteUser(ctx context.Context, username string) error
 	GetAccount(ctx context.Context, arg GetAccountParams) (SocialAccount, error)
-	GetPlatform(ctx context.Context, platformName string) (Platform, error)
+	GetPost(ctx context.Context, id string) (Post, error)
 	GetUser(ctx context.Context, username string) (User, error)
+	ListPosts(ctx context.Context) ([]Post, error)
+	ListPostsPaginated(ctx context.Context, arg ListPostsPaginatedParams) ([]Post, error)
 	UpdateAccount(ctx context.Context, arg UpdateAccountParams) error
-	UpdatePlatform(ctx context.Context, arg UpdatePlatformParams) error
+	UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 }
 

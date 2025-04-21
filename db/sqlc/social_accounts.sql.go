@@ -13,17 +13,16 @@ import (
 
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO social_accounts (
-username, platform_id, platform_username, access_token, refresh_token, expires_at
+username, platform_username, access_token, refresh_token, expires_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6
+  $1, $2, $3, $4, $5
 )
-RETURNING id, username, platform_id, platform_username, access_token, refresh_token, expires_at, created_at, updated_at
+RETURNING id, username, platform_username, access_token, refresh_token, expires_at, created_at, updated_at
 `
 
 type CreateAccountParams struct {
 	Username         string
-	PlatformID       int32
-	PlatformUsername pgtype.Text
+	PlatformUsername string
 	AccessToken      string
 	RefreshToken     pgtype.Text
 	ExpiresAt        pgtype.Timestamptz
@@ -32,7 +31,6 @@ type CreateAccountParams struct {
 func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (SocialAccount, error) {
 	row := q.db.QueryRow(ctx, createAccount,
 		arg.Username,
-		arg.PlatformID,
 		arg.PlatformUsername,
 		arg.AccessToken,
 		arg.RefreshToken,
@@ -42,7 +40,6 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (S
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
-		&i.PlatformID,
 		&i.PlatformUsername,
 		&i.AccessToken,
 		&i.RefreshToken,
@@ -55,36 +52,35 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (S
 
 const deleteAccount = `-- name: DeleteAccount :exec
 DELETE FROM social_accounts
-WHERE username = $1 AND platform_id = $2
+WHERE username = $1 AND platform_username = $2
 `
 
 type DeleteAccountParams struct {
-	Username   string
-	PlatformID int32
+	Username         string
+	PlatformUsername string
 }
 
 func (q *Queries) DeleteAccount(ctx context.Context, arg DeleteAccountParams) error {
-	_, err := q.db.Exec(ctx, deleteAccount, arg.Username, arg.PlatformID)
+	_, err := q.db.Exec(ctx, deleteAccount, arg.Username, arg.PlatformUsername)
 	return err
 }
 
 const getAccount = `-- name: GetAccount :one
-SELECT id, username, platform_id, platform_username, access_token, refresh_token, expires_at, created_at, updated_at FROM social_accounts
-WHERE username = $1 AND platform_id = $2 LIMIT 1
+SELECT id, username, platform_username, access_token, refresh_token, expires_at, created_at, updated_at FROM social_accounts
+WHERE username = $1 AND platform_username = $2 LIMIT 1
 `
 
 type GetAccountParams struct {
-	Username   string
-	PlatformID int32
+	Username         string
+	PlatformUsername string
 }
 
 func (q *Queries) GetAccount(ctx context.Context, arg GetAccountParams) (SocialAccount, error) {
-	row := q.db.QueryRow(ctx, getAccount, arg.Username, arg.PlatformID)
+	row := q.db.QueryRow(ctx, getAccount, arg.Username, arg.PlatformUsername)
 	var i SocialAccount
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
-		&i.PlatformID,
 		&i.PlatformUsername,
 		&i.AccessToken,
 		&i.RefreshToken,
@@ -101,22 +97,22 @@ SET  access_token= $3,
      refresh_token = $4,
      expires_at = $5,
      updated_at = $6
-WHERE username = $1 AND platform_id = $2
+WHERE username = $1 AND platform_username = $2
 `
 
 type UpdateAccountParams struct {
-	Username     string
-	PlatformID   int32
-	AccessToken  string
-	RefreshToken pgtype.Text
-	ExpiresAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	Username         string
+	PlatformUsername string
+	AccessToken      string
+	RefreshToken     pgtype.Text
+	ExpiresAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
 }
 
 func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) error {
 	_, err := q.db.Exec(ctx, updateAccount,
 		arg.Username,
-		arg.PlatformID,
+		arg.PlatformUsername,
 		arg.AccessToken,
 		arg.RefreshToken,
 		arg.ExpiresAt,

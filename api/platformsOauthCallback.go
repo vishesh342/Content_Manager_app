@@ -121,12 +121,6 @@ func (server *Server) createSocialAccount(ctx *gin.Context, tokenResp accessToke
 		return err
 	}
 
-	// Get Platform-ID
-	platform,err := server.connector.GetPlatform(ctx,"LinkedIn")
-	if err != nil{
-		return err
-	}
-
 	// Get auth_token from cookie and get username from token
 	authToken, err := ctx.Cookie("auth_token")
 	if err != nil{
@@ -140,17 +134,17 @@ func (server *Server) createSocialAccount(ctx *gin.Context, tokenResp accessToke
 	}
 
 	// Check if the acccount already exists, if not then create a new account else update the existing account
-	status,err:=server.accountExists(ctx,payload.Username,platform.ID)
+	status,err:=server.accountExists(ctx,payload.Username,user.ID)
 	if !status {
 		if err == sql.ErrNoRows {
-			err = server.createAccount(ctx,payload.Username,platform.ID,user.ID,tokenResp)
+			err = server.createAccount(ctx,payload.Username,user.ID,tokenResp)
 			if err != nil{
 				return err
 			}
 		}
 		return err
 	}else{
-		err = server.updateAccount(ctx,payload.Username,platform.ID,tokenResp)
+		err = server.updateAccount(ctx,payload.Username,user.ID,tokenResp)
 		if err != nil{
 			return err
 		}
@@ -183,10 +177,10 @@ func getLinkedinUserID(tokenResp accessTokenResponse) (LinkedInUser, error) {
 }
 
 // accountExists checks if a social account already exists for a given user and platform.
-func (server *Server) accountExists(ctx *gin.Context,username string,platformID int32) (bool, error) {
+func (server *Server) accountExists(ctx *gin.Context,username string,platformUserName string) (bool, error) {
 	arg := db.GetAccountParams{
 		Username:   username,
-		PlatformID: platformID,
+		PlatformUsername: platformUserName,
 	}
 	_, err := server.connector.GetAccount(ctx, arg)
 	if err != nil {
@@ -196,11 +190,10 @@ func (server *Server) accountExists(ctx *gin.Context,username string,platformID 
 }
 
 // createAccount creates a new social account in the database.
-func (server *Server) createAccount(ctx *gin.Context, username string, platformID int32, linkedInUserID string, tokenResp accessTokenResponse) error {
+func (server *Server) createAccount(ctx *gin.Context, username string, linkedInUserID string, tokenResp accessTokenResponse) error {
 	arg := db.CreateAccountParams{
 		Username:         username,
-		PlatformID:       platformID,
-		PlatformUsername: pgtype.Text{String: linkedInUserID, Valid: true},
+		PlatformUsername: linkedInUserID,
 		AccessToken:      tokenResp.AccessToken,
 		RefreshToken:     pgtype.Text{String: tokenResp.RefreshToken, Valid: true},
 		ExpiresAt:        pgtype.Timestamptz{Time: time.Now().Add(time.Second * time.Duration(tokenResp.ExpiresIn)), Valid: true},
@@ -210,10 +203,10 @@ func (server *Server) createAccount(ctx *gin.Context, username string, platformI
 }
 
 // updateAccount updates an existing social account in the database.
-func (server *Server) updateAccount(ctx *gin.Context, username string, platformID int32, tokenResp accessTokenResponse) error {
+func (server *Server) updateAccount(ctx *gin.Context, username string,platformUserName string, tokenResp accessTokenResponse) error {
 	updateArg := db.UpdateAccountParams{
 		Username:     username,
-		PlatformID:   platformID,
+		PlatformUsername: platformUserName,
 		AccessToken:  tokenResp.AccessToken,
 		RefreshToken: pgtype.Text{String: tokenResp.RefreshToken, Valid: true},
 		ExpiresAt:    pgtype.Timestamptz{Time: time.Now().Add(time.Second * time.Duration(tokenResp.ExpiresIn)), Valid: true},
