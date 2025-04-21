@@ -5,6 +5,6 @@ CREATE TABLE posts (
     media_urns JSONB,
     scheduled_time TIMESTAMPTZ,
     visibility VARCHAR NOT NULL CHECK (visibility IN ('PUBLIC', 'CONNECTIONS')),
-    account_id INT NOT NULL REFERENCES social_accounts(id),
+    account_id INT NOT NULL REFERENCES social_accounts(platform_username),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
