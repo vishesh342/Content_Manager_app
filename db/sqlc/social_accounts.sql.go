@@ -67,16 +67,11 @@ func (q *Queries) DeleteAccount(ctx context.Context, arg DeleteAccountParams) er
 
 const getAccount = `-- name: GetAccount :one
 SELECT id, username, platform_username, access_token, refresh_token, expires_at, created_at, updated_at FROM social_accounts
-WHERE username = $1 AND platform_username = $2 LIMIT 1
+WHERE username = $1 LIMIT 1
 `
 
-type GetAccountParams struct {
-	Username         string
-	PlatformUsername string
-}
-
-func (q *Queries) GetAccount(ctx context.Context, arg GetAccountParams) (SocialAccount, error) {
-	row := q.db.QueryRow(ctx, getAccount, arg.Username, arg.PlatformUsername)
+func (q *Queries) GetAccount(ctx context.Context, username string) (SocialAccount, error) {
+	row := q.db.QueryRow(ctx, getAccount, username)
 	var i SocialAccount
 	err := row.Scan(
 		&i.ID,

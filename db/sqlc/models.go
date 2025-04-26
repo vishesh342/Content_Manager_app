@@ -15,7 +15,7 @@ type Post struct {
 	MediaUrns     []byte
 	ScheduledTime pgtype.Timestamptz
 	Visibility    string
-	AccountID     int32
+	AccountID     string
 	CreatedAt     pgtype.Timestamptz
 }
 

@@ -8,7 +8,7 @@ RETURNING *;
 
 -- name: GetAccount :one
 SELECT * FROM social_accounts
-WHERE username = $1 AND platform_username = $2 LIMIT 1;
+WHERE username = $1 LIMIT 1;
 
 -- name: UpdateAccount :exec
 UPDATE social_accounts

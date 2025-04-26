@@ -27,7 +27,7 @@ type CreatePostParams struct {
 	MediaUrns     []byte
 	ScheduledTime pgtype.Timestamptz
 	Visibility    string
-	AccountID     int32
+	AccountID     string
 }
 
 func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, error) {
@@ -178,7 +178,7 @@ type UpdatePostParams struct {
 	MediaUrns     []byte
 	ScheduledTime pgtype.Timestamptz
 	Visibility    string
-	AccountID     int32
+	AccountID     string
 }
 
 func (q *Queries) UpdatePost(ctx context.Context, arg UpdatePostParams) (Post, error) {

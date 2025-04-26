@@ -25,14 +25,12 @@ func main(){
 	defer pool.Close()
 
     // Initialize the DBConnector with the connection pool
-
 	server,err := api.NewServer(pool)
 	if err != nil {
 		log.Fatalf("Unable to create server: %v\n", err)
 	}
 	
     err = server.Run(address)
-
 	if err != nil{
 		log.Fatal("Cannot Start Server...",err)
 	}

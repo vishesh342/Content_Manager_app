@@ -37,6 +37,7 @@ func NewServer(dbConn *pgxpool.Pool) (*Server,error) {
 	
 	
 	// added to Authorization Group.
+	authGroup.POST("/api/post_content",server.contentPostHandler)
 	authGroup.POST("/generate_idea",server.generateIdeaHandler)
 	authGroup.GET("/oauth/linkedin",server.getLinkedinToken)
 	authGroup.GET("/account/:username", server.getUser)

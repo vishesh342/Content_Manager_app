@@ -3,7 +3,6 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/vishesh342/content-manager/db/sqlc"
+	tk "github.com/vishesh342/content-manager/tokens"
 )
 
 const (
@@ -122,19 +122,10 @@ func (server *Server) createSocialAccount(ctx *gin.Context, tokenResp accessToke
 	}
 
 	// Get auth_token from cookie and get username from token
-	authToken, err := ctx.Cookie("auth_token")
-	if err != nil{
-		return errors.New("no auth token cookie found")
-	}
-
-	// Verify the jwt token stored in cookie
-	payload,err := server.tokenMaker.VerifyToken(authToken)
-	if err!=nil{
-		return errors.New("authentication of the token failed")
-	}
+	payload:= ctx.MustGet(authorizationPayload).(tk.Payload)
 
 	// Check if the acccount already exists, if not then create a new account else update the existing account
-	status,err:=server.accountExists(ctx,payload.Username,user.ID)
+	status,err:=server.accountExists(ctx,payload.Username)
 	if !status {
 		if err == sql.ErrNoRows {
 			err = server.createAccount(ctx,payload.Username,user.ID,tokenResp)
@@ -177,12 +168,8 @@ func getLinkedinUserID(tokenResp accessTokenResponse) (LinkedInUser, error) {
 }
 
 // accountExists checks if a social account already exists for a given user and platform.
-func (server *Server) accountExists(ctx *gin.Context,username string,platformUserName string) (bool, error) {
-	arg := db.GetAccountParams{
-		Username:   username,
-		PlatformUsername: platformUserName,
-	}
-	_, err := server.connector.GetAccount(ctx, arg)
+func (server *Server) accountExists(ctx *gin.Context,username string) (bool, error) {
+	_, err := server.connector.GetAccount(ctx, username)
 	if err != nil {
 		return false, err
 	}
